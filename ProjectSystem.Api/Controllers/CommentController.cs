@@ -1,9 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using ProjectSystem.Domain.Models;
 using ProjectSystem.Domain.Responses;
 using ProjectSystem.Repositories.Contacts;
+using System.Linq;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace ProjectSystem.Api.Controllers
 {
@@ -36,9 +41,13 @@ namespace ProjectSystem.Api.Controllers
         }
 
         [HttpPost("AddComment")]
-        public async Task<IActionResult> AddComment([FromBody] CreateCommentRequest comment)
+        public async Task<IActionResult> AddComment([FromForm] CreateCommentRequest comment)
         {
             var isCaptchaValid = await ValidateCaptcha(comment.captchaToken);
+            if (comment.image != null && !ImageHelper.IsValidImage(comment.image))
+            {
+                return BadRequest("Invalid image format. Only JPG, PNG, and GIF are allowed.");
+            }
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
@@ -60,6 +69,6 @@ namespace ProjectSystem.Api.Controllers
                 var captchaResult = JsonConvert.DeserializeObject<CaptchaVerificationResponse>(jsonResponse);
                 return captchaResult.Success;
             }
-        }
+        }    
     }
 }

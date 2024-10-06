@@ -1,13 +1,17 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ProjectSystem.DataAccess;
 using ProjectSystem.Domain.Entities;
 using ProjectSystem.Domain.Models;
-using ProjectSystem.Repositories.Contacts.Repositories;
-using Microsoft.Extensions.Logging;
-using System.Transactions;
-using System.Drawing.Printing;
 using ProjectSystem.Domain.Responses;
+using ProjectSystem.Repositories.Contacts.Repositories;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Gif;
 
 namespace ProjectSystem.Repositories.Implementation.Repositories
 {
@@ -15,16 +19,35 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CommentRepository> _logger;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public CommentRepository(ApplicationDbContext context, ILogger<CommentRepository> logger) : base(context)
+        public CommentRepository(ApplicationDbContext context, ILogger<CommentRepository> logger, IWebHostEnvironment hostingEnvironment) : base(context)
         {
             _context = context;
             _logger = logger;
+            _hostingEnvironment = hostingEnvironment;
         }
 
         public async Task AddComment(CreateCommentRequest newCommentRequest)
         {
-            // Используем транзакцию для атомарных операций
+            string? imageBase64 = null;
+
+            // Обработка изображения
+            if (newCommentRequest.image != null)
+            {
+                imageBase64 = await ProcessImageAsync(newCommentRequest.image);
+            }
+
+            string? textFileBase64 = null;
+            if (newCommentRequest.textFile != null)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await newCommentRequest.textFile.CopyToAsync(memoryStream);
+                    textFileBase64 = Convert.ToBase64String(memoryStream.ToArray());
+                }
+            }
+
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
@@ -58,7 +81,9 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
                         Right = newRight,
                         ParentId = newCommentRequest.parentId,
                         UserId = newCommentRequest.userId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        ImageBase64 = imageBase64,
+                        TextFileBase64 = textFileBase64
                     };
                     await _context.Comments.AddAsync(newComment);
                     await _context.SaveChangesAsync();
@@ -126,7 +151,6 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
                 .Include(c => c.User)
                 .AsQueryable();
 
-            // Применяем сортировку в зависимости от переданного параметра
             switch (sortBy)
             {
                 case "userName":
@@ -136,21 +160,69 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
                     query = sortOrder == "asc" ? query.OrderBy(c => c.User.Email) : query.OrderByDescending(c => c.User.Email);
                     break;
                 default:
-                    // Сортировка по CreatedAt как сортировка по умолчанию
                     query = sortOrder == "asc" ? query.OrderBy(c => c.CreatedAt) : query.OrderByDescending(c => c.CreatedAt);
                     break;
             }
-
-            // Получаем общее количество корневых комментариев
             var totalComments = await query.CountAsync();
-
-            // Применяем пагинацию
             var comments = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
             return new PaginatedResponse<Comment>(totalComments, comments);
+        }
+
+        private async Task<string?> ProcessImageAsync(IFormFile image)
+        {
+            string? imageBase64 = null;
+
+            var extension = Path.GetExtension(image.FileName).ToLower();
+            var allowedFormats = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+
+            if (allowedFormats.Contains(extension))
+            {
+                using (var imageStream = image.OpenReadStream())
+                {
+                    using (var img = await Image.LoadAsync(imageStream))
+                    {
+                        if (img.Width > 320 || img.Height > 240)
+                        {
+                            img.Mutate(x => x.Resize(new ResizeOptions
+                            {
+                                Size = new Size(320, 240),
+                                Mode = ResizeMode.Max
+                            }));
+                        }
+
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            if (extension == ".jpg" || extension == ".jpeg")
+                            {
+                                var jpegEncoder = new JpegEncoder { Quality = 75 };
+                                await img.SaveAsync(memoryStream, jpegEncoder);
+                            }
+                            else if (extension == ".png")
+                            {
+                                var pngEncoder = new PngEncoder();
+                                await img.SaveAsync(memoryStream, pngEncoder);
+                            }
+                            else if (extension == ".gif")
+                            {
+                                var gifEncoder = new GifEncoder();
+                                await img.SaveAsync(memoryStream, gifEncoder);
+                            }
+
+                            imageBase64 = Convert.ToBase64String(memoryStream.ToArray());
+                        }
+                    }
+                }
+            }
+            else
+            {
+                throw new ArgumentException("Invalid image format. Only JPG, PNG, and GIF are allowed.");
+            }
+
+            return imageBase64;
         }
     }
 }

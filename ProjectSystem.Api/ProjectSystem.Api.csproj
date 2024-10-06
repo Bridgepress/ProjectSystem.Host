@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ProjectSystem.Core\ProjectSystem.Core.csproj" />
+    <ProjectReference Include="..\ProjectSystem.Handlers\ProjectSystem.Handlers.csproj" />
     <ProjectReference Include="..\ProjectSystem.Repositories.Contacts\ProjectSystem.Repositories.Contacts.csproj" />
     <ProjectReference Include="..\ProjectSystem.Services.Contacts\ProjectSystem.Services.Contacts.csproj" />
   </ItemGroup>
