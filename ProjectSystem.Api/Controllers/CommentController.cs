@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using ProjectSystem.Domain.Models;
+using ProjectSystem.Domain.Responses;
 using ProjectSystem.Repositories.Contacts;
 
 namespace ProjectSystem.Api.Controllers
@@ -9,10 +12,12 @@ namespace ProjectSystem.Api.Controllers
     public class CommentController : ControllerBase
     {
         private readonly IRepositoryManager _repositoryManager;
+        private readonly string _captchaSecretKey;
 
-        public CommentController(IRepositoryManager repositoryManager)
+        public CommentController(IRepositoryManager repositoryManager, IConfiguration configuration)
         {
             _repositoryManager = repositoryManager;
+            _captchaSecretKey = configuration["Captcha:secretKey"];
         }
 
         [HttpGet("GetCommentTree/{commentId:guid}")]
@@ -24,22 +29,37 @@ namespace ProjectSystem.Api.Controllers
         }
 
         [HttpGet("GetRootComments")]
-        public async Task<IActionResult> GetRootComments(int page, int pageSize)
+        public async Task<IActionResult> GetRootComments(int page, int pageSize, string? sortBy, string? sortOrder)
         {
-            var paginatedComments = await _repositoryManager.CommentRepository.GetRootComments(page, pageSize);
+            var paginatedComments = await _repositoryManager.CommentRepository.GetRootComments(page, pageSize, sortBy, sortOrder);
             return Ok(paginatedComments);
         }
 
         [HttpPost("AddComment")]
         public async Task<IActionResult> AddComment([FromBody] CreateCommentRequest comment)
         {
+            var isCaptchaValid = await ValidateCaptcha(comment.captchaToken);
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-
+            if (!isCaptchaValid)
+            {
+                return BadRequest("Invalid CAPTCHA");
+            }
             await _repositoryManager.CommentRepository.AddComment(comment);
             return Ok();
+        }
+
+        private async Task<bool> ValidateCaptcha(string captchaToken)
+        {
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.PostAsync($"https://www.google.com/recaptcha/api/siteverify?secret={_captchaSecretKey}&response={captchaToken}", null);
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                var captchaResult = JsonConvert.DeserializeObject<CaptchaVerificationResponse>(jsonResponse);
+                return captchaResult.Success;
+            }
         }
     }
 }

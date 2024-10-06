@@ -5,5 +5,6 @@
         public string content { get; set; }
         public Guid userId { get; set; }
         public Guid? parentId { get; set; } = null;
+        public string? captchaToken { get; set; }
     }
 }

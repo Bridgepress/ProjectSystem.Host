@@ -57,7 +57,8 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
                         Left = newLeft,
                         Right = newRight,
                         ParentId = newCommentRequest.parentId,
-                        UserId = newCommentRequest.userId
+                        UserId = newCommentRequest.userId,
+                        CreatedAt = DateTime.UtcNow
                     };
                     await _context.Comments.AddAsync(newComment);
                     await _context.SaveChangesAsync();
@@ -118,13 +119,33 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
         }
 
 
-        public async Task<PaginatedResponse<Comment>> GetRootComments(int page, int pageSize)
+        public async Task<PaginatedResponse<Comment>> GetRootComments(int page, int pageSize, string? sortBy, string? sortOrder)
         {
-            var totalComments = await _context.Comments.CountAsync(c => c.ParentId == null);
-            var comments = await _context.Comments
+            var query = _context.Comments
                 .Where(c => c.ParentId == null)
                 .Include(c => c.User)
-                    .OrderBy(c => c.Left)
+                .AsQueryable();
+
+            // Применяем сортировку в зависимости от переданного параметра
+            switch (sortBy)
+            {
+                case "userName":
+                    query = sortOrder == "asc" ? query.OrderBy(c => c.User.UserName) : query.OrderByDescending(c => c.User.UserName);
+                    break;
+                case "email":
+                    query = sortOrder == "asc" ? query.OrderBy(c => c.User.Email) : query.OrderByDescending(c => c.User.Email);
+                    break;
+                default:
+                    // Сортировка по CreatedAt как сортировка по умолчанию
+                    query = sortOrder == "asc" ? query.OrderBy(c => c.CreatedAt) : query.OrderByDescending(c => c.CreatedAt);
+                    break;
+            }
+
+            // Получаем общее количество корневых комментариев
+            var totalComments = await query.CountAsync();
+
+            // Применяем пагинацию
+            var comments = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

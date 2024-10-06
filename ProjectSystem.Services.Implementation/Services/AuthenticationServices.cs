@@ -81,7 +81,7 @@ namespace ProjectSystem.Services.Implementation.Services
             var accessToken = new JwtSecurityTokenHandler().WriteToken(tokenOptions);
 
             return new LoginUserResponse(user.Id, user.UserName, accessToken,
-                refreshToken);
+                refreshToken, user.Email);
         }
 
         private SigningCredentials GetSigningCredentials()

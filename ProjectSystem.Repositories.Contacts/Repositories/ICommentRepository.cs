@@ -12,6 +12,6 @@ namespace ProjectSystem.Repositories.Contacts.Repositories
 
         Task<List<Comment>> GetCommentTree(Guid commentId);
 
-        Task<PaginatedResponse<Comment>> GetRootComments(int page, int pageSize);
+        Task<PaginatedResponse<Comment>> GetRootComments(int page, int pageSize, string? sortBy, string? sortOrder);
     }
 }
