@@ -6,6 +6,8 @@ using ProjectSystem.Domain.Models;
 using ProjectSystem.Repositories.Contacts.Repositories;
 using Microsoft.Extensions.Logging;
 using System.Transactions;
+using System.Drawing.Printing;
+using ProjectSystem.Domain.Responses;
 
 namespace ProjectSystem.Repositories.Implementation.Repositories
 {
@@ -116,13 +118,18 @@ namespace ProjectSystem.Repositories.Implementation.Repositories
         }
 
 
-        public async Task<List<Comment>> GetRootComments()
+        public async Task<PaginatedResponse<Comment>> GetRootComments(int page, int pageSize)
         {
-            return await _context.Comments
+            var totalComments = await _context.Comments.CountAsync(c => c.ParentId == null);
+            var comments = await _context.Comments
                 .Where(c => c.ParentId == null)
                 .Include(c => c.User)
-                .OrderBy(c => c.Left)
+                    .OrderBy(c => c.Left)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return new PaginatedResponse<Comment>(totalComments, comments);
         }
     }
 }

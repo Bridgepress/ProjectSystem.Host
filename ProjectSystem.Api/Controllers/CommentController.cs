@@ -24,11 +24,10 @@ namespace ProjectSystem.Api.Controllers
         }
 
         [HttpGet("GetRootComments")]
-        public async Task<IActionResult> GetRootComments()
+        public async Task<IActionResult> GetRootComments(int page, int pageSize)
         {
-            var rootComments = await _repositoryManager.CommentRepository.GetRootComments();
-
-            return Ok(rootComments);
+            var paginatedComments = await _repositoryManager.CommentRepository.GetRootComments(page, pageSize);
+            return Ok(paginatedComments);
         }
 
         [HttpPost("AddComment")]
