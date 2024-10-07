@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "mssql1": {
+      "serviceConnectorResourceId": "/subscriptions/[parameters('subscriptionId')]/resourcegroups/[parameters('resourceGroupName')]/providers/Microsoft.Web/sites/ProjectSystemHost20241007203045/providers/Microsoft.ServiceLinker/linkers/ConnectionStringsProjectSystem_9CEA8F044F",
+      "secretStore": "AzureAppSettings",
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourcegroups/[parameters('resourceGroupName')]/providers/Microsoft.Sql/servers/projectsystem/databases/ProjectSystem.Host_db",
+      "type": "mssql.azure",
+      "connectionId": "ConnectionStrings:ProjectSystem",
+      "dynamicId": null
+    }
+  }
+}
