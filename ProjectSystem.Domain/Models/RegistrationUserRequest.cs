@@ -12,5 +12,6 @@ namespace ProjectSystem.Domain.Models
         ErrorMessage = "Password must be at least 8 characters long.",
         MinimumLength = FieldsValidation.User.PasswordMinLength)]
         public string password { get; set; }
+        public string email { get; set; }
     }
 }

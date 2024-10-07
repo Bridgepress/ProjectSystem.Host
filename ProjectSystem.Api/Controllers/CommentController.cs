@@ -43,7 +43,6 @@ namespace ProjectSystem.Api.Controllers
         [HttpPost("AddComment")]
         public async Task<IActionResult> AddComment([FromForm] CreateCommentRequest comment)
         {
-            var isCaptchaValid = await ValidateCaptcha(comment.captchaToken);
             if (comment.image != null && !ImageHelper.IsValidImage(comment.image))
             {
                 return BadRequest("Invalid image format. Only JPG, PNG, and GIF are allowed.");
@@ -52,23 +51,9 @@ namespace ProjectSystem.Api.Controllers
             {
                 return BadRequest(ModelState);
             }
-            if (!isCaptchaValid)
-            {
-                return BadRequest("Invalid CAPTCHA");
-            }
+
             await _repositoryManager.CommentRepository.AddComment(comment);
             return Ok();
         }
-
-        private async Task<bool> ValidateCaptcha(string captchaToken)
-        {
-            using (var httpClient = new HttpClient())
-            {
-                var response = await httpClient.PostAsync($"https://www.google.com/recaptcha/api/siteverify?secret={_captchaSecretKey}&response={captchaToken}", null);
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                var captchaResult = JsonConvert.DeserializeObject<CaptchaVerificationResponse>(jsonResponse);
-                return captchaResult.Success;
-            }
-        }    
     }
 }
