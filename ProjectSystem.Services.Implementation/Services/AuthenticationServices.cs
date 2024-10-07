@@ -44,6 +44,12 @@ namespace ProjectSystem.Services.Implementation.Services
 
         public async Task<CreatedUserResponse> RegistrationUser(RegistrationUserRequest request, CancellationToken cancellationToken)
         {
+            var existingUser = await _userManager.FindByEmailAsync(request.email);
+            if (existingUser != null)
+            {
+                throw new RegistrationException(new List<string> { "User with this email already exists" }, typeof(RegistrationUserRequest));
+            }
+
             var user = _mapper.Map<User>(request);
             var result = await _userManager.CreateAsync(user, request.password);
             if (!result.Succeeded)
